@@ -5,5 +5,5 @@ COPY . /toketi-kafka-connector-iothub/
 RUN sbt assembly
 FROM alpine:3.5
 RUN mkdir /jars
-WORKDIR /jars
-COPY --from=sbt /toketi-kafka-connector-iothub/target/scala-2.11/*.jar /jars/
+RUN mkdir /jars/kafka-connect-iothub
+COPY --from=sbt /toketi-kafka-connector-iothub/target/scala-2.11/*.jar /jars/kafka-connect-iothub
