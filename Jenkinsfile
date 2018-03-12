@@ -25,8 +25,8 @@ node('kubernetes') {
         checkout scm
         md = readFile 'build.sbt'
         version = get_version md
-        image_name = "toketi-kafka-connect-iot:latest"
-        build_name = "toketi-kafka-connect-iot:${version}"
+        image_name = "toketi-kafka-connect-iothub:latest"
+        build_name = "toketi-kafka-connect-iothub:${version}"
         currentBuild.setDisplayName(build_name)
 
         if (!is_env('master')) {
