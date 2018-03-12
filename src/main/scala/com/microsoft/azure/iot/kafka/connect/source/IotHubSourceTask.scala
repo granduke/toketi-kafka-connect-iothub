@@ -17,8 +17,6 @@ import scala.util.control.NonFatal
 
 class IotHubSourceTask extends SourceTask with LazyLogging with JsonSerialization {
 
-  private var eventHubName = ""
-
   // Public for testing
   val partitionSources = mutable.ListBuffer.empty[IotHubPartitionSource]
 
@@ -30,8 +28,8 @@ class IotHubSourceTask extends SourceTask with LazyLogging with JsonSerializatio
       for (partitionSource <- this.partitionSources) {
         logger.debug(s"Polling for data in partition ${partitionSource.partition}")
         val sourceRecordsList = partitionSource.getRecords
-        logger.info(s"${eventHubName}:${partitionSource.partition} - Polling for data - " +
-          s"Obtained ${sourceRecordsList.length} SourceRecords")
+        logger.info(s"Polling for data - Obtained ${sourceRecordsList.length} SourceRecords " +
+          s"from ${partitionSource.eventHubName}:${partitionSource.partition}")
         list ++= sourceRecordsList
       }
     } catch {
@@ -58,7 +56,7 @@ class IotHubSourceTask extends SourceTask with LazyLogging with JsonSerializatio
     val topic = props.get(IotHubSourceConfig.KafkaTopic)
     val batchSize = props.get(IotHubSourceConfig.BatchSize).toInt
     val startTime = getStartTime(props.get(IotHubSourceConfig.IotHubStartTime))
-    eventHubName = props.get(IotHubSourceConfig.EventHubCompatibleName)
+    val eventHubName = props.get(IotHubSourceConfig.EventHubCompatibleName)
     val receiveTimeout = Duration.ofSeconds(props.get(IotHubSourceConfig.ReceiveTimeout).toInt)
 
     val offsetStorageReader: OffsetStorageReader = if (this.context != null) {
@@ -85,9 +83,10 @@ class IotHubSourceTask extends SourceTask with LazyLogging with JsonSerializatio
         logger.info(s"Setting up partition receiver $partition with offset ${partitionOffset.get}")
       }
 
-      val dataReceiver = getDataReceiver(connectionString, receiverConsumerGroup, partition, partitionOffset,
-        partitionStartTime, receiveTimeout)
-      val partitionSource = new IotHubPartitionSource(dataReceiver, partition, topic, batchSize, sourcePartition)
+      val dataReceiver = getDataReceiver(connectionString, receiverConsumerGroup, partition,
+        partitionOffset, partitionStartTime, receiveTimeout)
+      val partitionSource = new IotHubPartitionSource(dataReceiver, partition, topic, batchSize,
+        eventHubName, sourcePartition)
       this.partitionSources += partitionSource
     }
   }
