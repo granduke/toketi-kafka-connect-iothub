@@ -5,6 +5,7 @@ package com.microsoft.azure.iot.kafka.connect.source
 import java.time.{Duration, Instant}
 import java.util
 
+import com.microsoft.azure.eventhubs.impl.EventPositionImpl
 import com.microsoft.azure.iot.kafka.connect.source.testhelpers.{DeviceTemperature, MockDataReceiver, TestConfig, TestIotHubSourceTask}
 import org.apache.kafka.connect.data.Struct
 import org.json4s.jackson.Serialization.read
@@ -65,8 +66,8 @@ class IotHubSourceTaskTest extends FlatSpec with GivenWhenThen with JsonSerializ
     assert(!task.partitionSources.exists(s => s.dataReceiver == null))
     for (ps ← task.partitionSources) {
       val dataReceiver = ps.dataReceiver.asInstanceOf[MockDataReceiver]
-      assert(dataReceiver.offset.isDefined)
-      assert(dataReceiver.startTime.isEmpty)
+      assert(dataReceiver.eventPosition.toString().contains("enqueuedTime[null]"))
+      assert(!(dataReceiver.eventPosition.toString().contains("offset[null]")))
       assert(dataReceiver.connectionString != "")
       assert(dataReceiver.receiverConsumerGroup != "")
       assert(dataReceiver.receiveTimeout == Duration.ofSeconds(5))
@@ -87,9 +88,11 @@ class IotHubSourceTaskTest extends FlatSpec with GivenWhenThen with JsonSerializ
     assert(!task.partitionSources.exists(s => s.dataReceiver == null))
     for (ps ← task.partitionSources) {
       val dataReceiver = ps.dataReceiver.asInstanceOf[MockDataReceiver]
-      assert(dataReceiver.offset.isEmpty)
-      assert(dataReceiver.startTime.isDefined)
-      assert(dataReceiver.startTime.get == Instant.parse("2016-12-10T00:00:00Z"))
+      val expectedExpr = String.format(
+        "enqueuedTime[%s]", Instant.parse("2016-12-10T00:00:00Z").toEpochMilli.toString)
+      assert(dataReceiver.eventPosition.toString().contains("offset[null]"))
+      assert(!dataReceiver.eventPosition.toString().contains("enqueuedTime[null]"))
+      assert(dataReceiver.eventPosition.toString().contains(expectedExpr))
       assert(dataReceiver.connectionString != "")
       assert(dataReceiver.receiverConsumerGroup != "")
     }

@@ -5,6 +5,7 @@ package com.microsoft.azure.iot.kafka.connect.source.testhelpers
 import java.text.SimpleDateFormat
 import java.time.{Duration, Instant}
 
+import com.microsoft.azure.eventhubs.EventPosition
 import com.microsoft.azure.eventhubs.impl.AmqpConstants
 import com.microsoft.azure.iot.kafka.connect.source.{DataReceiver, IotMessage, JsonSerialization}
 import org.json4s.jackson.Serialization.write
@@ -13,7 +14,7 @@ import scala.collection.mutable
 import scala.util.Random
 
 class MockDataReceiver(val connectionString: String, val receiverConsumerGroup: String, val partition: String,
-    var offset: Option[String], val startTime: Option[Instant], val receiveTimeout: Duration
+    val eventPosition: EventPosition, val receiveTimeout: Duration
     ) extends DataReceiver with JsonSerialization {
 
   private val random: Random = new Random

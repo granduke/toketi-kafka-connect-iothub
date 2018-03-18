@@ -5,6 +5,7 @@ package com.microsoft.azure.iot.kafka.connect.source
 import java.time.{Duration, Instant}
 import java.util
 
+import com.microsoft.azure.eventhubs.EventPosition
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.kafka.connect.errors.ConnectException
 import org.apache.kafka.connect.source.{SourceRecord, SourceTask}
@@ -71,20 +72,21 @@ class IotHubSourceTask extends SourceTask with LazyLogging with JsonSerializatio
         "EventHubName" → eventHubName,
         "EventHubPartition" → partition).asJava
 
-      var partitionStartTime: Option[Instant] = None
-      var partitionOffset: Option[String] = getSavedOffset(offsetStorageReader, sourcePartition)
+      val partitionOffset: Option[String] = getSavedOffset(offsetStorageReader, sourcePartition)
+      var eventPosition: EventPosition = null
       if (partitionOffset.isDefined) {
+        eventPosition = EventPosition.fromOffset(partitionOffset.get)
         logger.info(s"Setting up partition receiver $partition with previously saved offset ${partitionOffset.get}")
       } else if (startTime.isDefined) {
-        partitionStartTime = startTime
+        eventPosition = EventPosition.fromEnqueuedTime(startTime.get)
         logger.info(s"Setting up partition receiver $partition with start time ${startTime}")
       } else {
-        partitionOffset = Some(initialOffset)
-        logger.info(s"Setting up partition receiver $partition with offset ${partitionOffset.get}")
+        eventPosition = EventPosition.fromOffset(initialOffset)
+        logger.info(s"Setting up partition receiver $partition with offset ${initialOffset}")
       }
 
       val dataReceiver = getDataReceiver(connectionString, receiverConsumerGroup, partition,
-        partitionOffset, partitionStartTime, receiveTimeout)
+        eventPosition, receiveTimeout)
       val partitionSource = new IotHubPartitionSource(dataReceiver, partition, topic, batchSize,
         eventHubName, sourcePartition)
       this.partitionSources += partitionSource
@@ -92,9 +94,9 @@ class IotHubSourceTask extends SourceTask with LazyLogging with JsonSerializatio
   }
 
   protected def getDataReceiver(connectionString: String, receiverConsumerGroup: String, partition: String,
-      partitionOffset: Option[String], partitionStartTime: Option[Instant], receiveTimeout: Duration): DataReceiver = {
+      eventPosition: EventPosition, receiveTimeout: Duration): DataReceiver = {
     new EventHubReceiver(connectionString, receiverConsumerGroup,
-      partition, partitionOffset, partitionStartTime, receiveTimeout)
+      partition, eventPosition, receiveTimeout)
   }
 
   private def getStartTime(startTimeString: String): Option[Instant] = {

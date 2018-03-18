@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 class EventHubReceiver(val connectionString: String, val receiverConsumerGroup: String, val partition: String,
-    var offset: Option[String], val startTime: Option[Instant], val receiveTimeout: Duration) extends DataReceiver {
+    val eventPosition: EventPosition, val receiveTimeout: Duration) extends DataReceiver {
 
   private[this] var isClosing = false
 
@@ -21,11 +21,6 @@ class EventHubReceiver(val connectionString: String, val receiverConsumerGroup: 
     throw new IllegalArgumentException("Unable to create EventHubClient from the input parameters.")
   }
 
-  private val eventPosition = if (startTime.isDefined) {
-    EventPosition.fromEnqueuedTime(startTime.get)
-  }  else {
-    EventPosition.fromOffset(offset.get)
-  }
   private val eventHubReceiver: PartitionReceiver = eventHubClient.createReceiverSync(
     receiverConsumerGroup, partition.toString, eventPosition)
   if (this.eventHubReceiver == null) {
