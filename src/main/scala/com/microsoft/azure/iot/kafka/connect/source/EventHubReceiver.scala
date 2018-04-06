@@ -42,13 +42,21 @@ class EventHubReceiver(val connectionString: String, val receiverConsumerGroup: 
     }
   }
 
+  private def isTimedOut(startTime: Instant): Boolean = {
+    val timeout = this.eventHubReceiver.getReceiveTimeout.getSeconds
+    val endTime: Instant = startTime.plusSeconds(timeout)
+    return Instant.now().isAfter(endTime)
+  }
+
   override def receiveData(batchSize: Int): Iterable[IotMessage] = {
     var iotMessages = ListBuffer.empty[IotMessage]
       var curBatchSize = batchSize
       var endReached = false
+      var timedOut = false
+      val startTime: Instant = Instant.now
       // Synchronize on the eventHubReceiver object, and make sure the task is not closing,
       // in which case, the eventHubReceiver might be closed.
-      while (curBatchSize > 0 && !endReached && !this.isClosing) {
+      while (curBatchSize > 0 && !endReached && !timedOut && !this.isClosing) {
         this.eventHubReceiver.synchronized {
           if(!this.isClosing) {
             val batch = this.eventHubReceiver.receiveSync(curBatchSize)
@@ -60,6 +68,7 @@ class EventHubReceiver(val connectionString: String, val receiverConsumerGroup: 
                 iotDeviceData
               })
               curBatchSize -= batchIterable.size
+              timedOut = isTimedOut(startTime)
             } else {
               endReached = true
             }
